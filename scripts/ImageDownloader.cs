@@ -19,5 +19,4 @@ namespace Unitter
             rawImage.SetNativeSize();
         }
     }
-
 }

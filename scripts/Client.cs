@@ -104,7 +104,7 @@ namespace Unitter
 
         #endregion
 
-        #region Oveload methods
+        #region Overload methods
 
         /// <summary>
         /// No require parameters POST request.
@@ -140,7 +140,9 @@ namespace Unitter
         public string GenerateHeaderAuthorization(string requestUrl, string requestMethod, Dictionary<string, string> parameters)
         {
             //Set default parameters.
-            parameters.Add("oauth_callback", "oob");
+            if (!parameters.ContainsKey("oauth_callback")) {
+                parameters.Add("oauth_callback", "oob");
+            }
             parameters.Add("oauth_consumer_key", consumerKey);
             parameters.Add("oauth_nonce", RandomString(8));
             parameters.Add("oauth_signature_method", "HMAC-SHA1");

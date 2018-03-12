@@ -4,12 +4,13 @@ using UnityEngine;
 using UnityEngine.UI;
 using Unitter;
 
+[RequireComponent(typeof(Client))]
 public class Sample : MonoBehaviour
 {
     public Client client;
     //Your app Keys
-    private string consumerKey = "";
-    private string consumerSecret = "";
+    public string consumerKey = "";
+    public string consumerSecret = "";
 
     private const string requestTokenUrl = "https://api.twitter.com/oauth/request_token";
     private const string accessTokenUrl = "https://api.twitter.com/oauth/access_token";
@@ -31,8 +32,10 @@ public class Sample : MonoBehaviour
             //Get parameters from response text.
             Dictionary<string, string> parameters = Client.GetParametersFromResponse(response);
             oauthToken = parameters["oauth_token"];
-            //Output log Authorization URL.
-            Debug.Log("https://api.twitter.com/oauth/authorize?oauth_token=" + oauthToken);
+            //Open Authorize URL
+            Application.OpenURL("https://api.twitter.com/oauth/authorize?oauth_token=" + oauthToken);
+        } else {
+            Debug.Log(response);
         }
     }
 
@@ -49,11 +52,11 @@ public class Sample : MonoBehaviour
             { "oauth_token", oauthToken}
         };
         //POST access_token URL
-        StartCoroutine(client.Post(accessTokenUrl, parameters, SetAccessToken));
+        StartCoroutine(client.Post(accessTokenUrl, parameters, ConfirmPinCallback));
     }
 
     //STEP 4
-    void SetAccessToken(bool isSuccess, string response)
+    void ConfirmPinCallback(bool isSuccess, string response)
     {
         if (isSuccess) {
             //Get parameters from response text.
@@ -67,7 +70,7 @@ public class Sample : MonoBehaviour
     }
 
     //SETP 5
-    // Excute GEtUserTimeLine Method (with button etc.).
+    // Excute GetUserTimeLine Method (with button etc.).
     public void GetUserTimeLine()
     {
         string userTimelineUrl = "https://api.twitter.com/1.1/statuses/home_timeline.json";
@@ -75,12 +78,12 @@ public class Sample : MonoBehaviour
         Dictionary<string, string> parameters = new Dictionary<string, string>();
         parameters.Add("count", "20");
         //GET uset timeline.
-        StartCoroutine(client.Get(userTimelineUrl, parameters, LogTweet));
+        StartCoroutine(client.Get(userTimelineUrl, parameters, GetUserTimeLineCallback));
     }
 
     //STEP 6
     //You get your timeline.
-    void LogTweet(bool isSuccess, string response)
+    void GetUserTimeLineCallback(bool isSuccess, string response)
     {
         if (isSuccess) {
             List<Tweet> tweets = JsonHelper.ListFromJson<Tweet>(response);
