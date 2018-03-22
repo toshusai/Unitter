@@ -1,19 +1,19 @@
-﻿using System.Collections;
+﻿using System;
+using System.Text;
+using System.Security.Cryptography;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Networking;
-using System;
-using System.Text;
-using System.Security.Cryptography;
 
 namespace Unitter
 {
     public class Client : MonoBehaviour
     {
-        private string consumerKey = "";
-        private string consumerSecret = "";
-        private string accessToken = "";
-        private string accessTokenSecret = "";
+        protected string consumerKey = "";
+        protected string consumerSecret = "";
+        protected string accessToken = "";
+        protected string accessTokenSecret = "";
 
         //Callback method
         public delegate void response(bool isSuccess, string response);
@@ -152,17 +152,17 @@ namespace Unitter
                 parameters.Add("oauth_token", accessToken);
             }
 
-            //Sort parameters.
+            // Sort parameters.
             parameters = SortDictionary(parameters);
-            //Add signature to parameters.
+            // Add signature to parameters.
             parameters.Add("oauth_signature", GenerateSignature(requestUrl, requestMethod, parameters));
 
-            //Generate header "OAuth key=value,key=value,...".
+            // Generate header "OAuth key=value,key=value,...".
             string authorization = "OAuth ";
             foreach (KeyValuePair<string, string> pair in parameters) {
                 authorization += String.Format("{0}=\"{1}\",", Uri.EscapeDataString(pair.Key), Uri.EscapeDataString(pair.Value));
             }
-            //Remove last ",".
+            // Remove last ",".
             authorization = RemoveLastString(authorization);
             return authorization;
         }
@@ -172,24 +172,24 @@ namespace Unitter
         /// </summary>
         private string GenerateSignature(string requestUrl, string requestMethod, Dictionary<string, string> parameters)
         {
-            //Convert to "Key=Value&Key=Value&..." format.
+            // Convert to "Key=Value&Key=Value&..." format.
             string parametersString = "";
             foreach (KeyValuePair<string, string> pair in parameters) {
                 parametersString += Uri.EscapeDataString(pair.Key) + "=" + Uri.EscapeDataString(pair.Value) + "&";
             }
 
-            //Remove last "&".
+            // Remove last "&".
             parametersString = RemoveLastString(parametersString);
 
-            //Generate key and data for signature.
+            // Generate key and data for signature.
             string signatureKey = Uri.EscapeDataString(consumerSecret) + "&" + Uri.EscapeDataString(accessTokenSecret);
             string signatureData = Uri.EscapeDataString(requestMethod) + "&" + Uri.EscapeDataString(requestUrl) + "&" + Uri.EscapeDataString(parametersString);
 
-            //Generate HMACSHA1 hash value.
+            // Generate HMACSHA1 hash value.
             HMACSHA1 hmacsha1 = new HMACSHA1(Encoding.ASCII.GetBytes(signatureKey));
             byte[] signatureBytes = hmacsha1.ComputeHash(Encoding.ASCII.GetBytes(signatureData));
 
-            //BASE64 encode.
+            // BASE64 encode.
             string signature = Convert.ToBase64String(signatureBytes);
 
             return signature;
@@ -235,6 +235,191 @@ namespace Unitter
         private static string GetUnixTimeStamp()
         {
             return Convert.ToInt32((DateTime.UtcNow.Subtract(new DateTime(1970, 1, 1))).TotalSeconds).ToString();
+        }
+
+        #endregion
+
+        #region virtual Rest API
+
+        /// <summary>
+        /// 
+        /// </summary>
+        public void PostOAuthRequestToken()
+        {
+            string endpointUrl = "https://api.twitter.com/oauth/request_token";
+            StartCoroutine(Post(endpointUrl, new Dictionary<string, string>(), PostOAuthRequestTokenCallback));
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        public virtual void PostOAuthRequestTokenCallback(bool isSuccess, string response)
+        {
+            // Example
+            /*
+            if (isSuccess) {
+                Dictionary<string, string> parameters = GetParametersFromResponse(response);
+                string oauthToken = parameters["oauth_token"];
+                string authorizeUrl = "https://api.twitter.com/oauth/authorize?oauth_token=" + oauthToken;
+            }
+            */
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        public void PostOAuthAccessToken(string oauthVerifier, string oauthToken)
+        {
+            string endpointUrl = "https://api.twitter.com/oauth/access_token";
+            Dictionary<string, string> parameters = new Dictionary<string, string>() {
+                { "oauth_verifier", oauthVerifier},
+                { "oauth_token", oauthToken}
+            };
+            StartCoroutine(Post(endpointUrl, parameters, PostOAuthAccessTokenCallback));
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        public virtual void PostOAuthAccessTokenCallback(bool isSuccess, string response)
+        {
+            if (isSuccess) {
+                Dictionary<string, string> parameters = Client.GetParametersFromResponse(response);
+                // Set Access Token and Access Token Secret.
+                SetAccessToken(parameters["oauth_token"]);
+                SetAccessTokenSecret(parameters["oauth_token_secret"]);
+            }
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        public void GetStatuesHomeTimeline(int? count = null, long? since_id = null, long? max_id = null, bool? trim_user = null, bool? exclude_replies = null, bool? include_entities = null)
+        {
+            string endpointUrl = "https://api.twitter.com/1.1/statuses/home_timeline.json";
+            Dictionary<string, string> parameters = new Dictionary<string, string>();
+            if (count != null) {
+                parameters.Add("count", count.ToString());
+            }
+            if(since_id != null) {
+                parameters.Add("since_id", since_id.ToString());
+            }
+            if(max_id != null) {
+                parameters.Add("max_id", max_id.ToString());
+            }
+            if(trim_user != null) {
+                parameters.Add("trim_user", trim_user.ToString());
+            }
+            if(exclude_replies != null) {
+                parameters.Add("exclude_replies", exclude_replies.ToString());
+            }
+            if(include_entities != null) {
+                parameters.Add("include_entities", include_entities.ToString());
+            }
+            StartCoroutine(Get(endpointUrl, parameters, GetStatuesHomeTimelineCallback));
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        public virtual void GetStatuesHomeTimelineCallback(bool isSuccess, string response)
+        {
+            
+        }
+
+        public virtual void TestVirtual()
+        {
+
+        }
+
+        /// <summary>
+        /// Requests / 15-min window (user auth) 900
+        /// </summary>
+        public void GetUsersShow(long? user_id = null, string screen_name = null, bool? include_entities = null)
+        {
+            string endpointUrl = "https://api.twitter.com/1.1/users/show.json";
+            Dictionary<string, string> parameters = new Dictionary<string, string>();
+            if (user_id != null) {
+                parameters.Add("user_id", user_id.ToString());
+            }
+            if (screen_name != null) {
+                parameters.Add("screen_name", screen_name);
+            }
+            if(include_entities != null) {
+                parameters.Add("include_entities", include_entities.ToString());
+            }
+            StartCoroutine(Get(endpointUrl, parameters, GetUsersShowCallback));
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        public virtual void GetUsersShowCallback(bool isSuccess, string response)
+        {
+
+        }
+
+        /// <summary>
+        /// Requests / 15-min window (user auth) 15
+        /// </summary>
+        public void GetFriendsIds(long? user_id = null, string screen_name = null, long? cursor = null, bool? stringify_ids = null, int? count = null)
+        {
+            string endpointUrl = "https://api.twitter.com/1.1/friends/ids.json";
+            Dictionary<string, string> parameters = new Dictionary<string, string>();
+            if (user_id != null) {
+                parameters.Add("user_id", user_id.ToString());
+            }
+            if (screen_name != null) {
+                parameters.Add("screen_name", screen_name);
+            }
+            if(cursor != null) {
+                parameters.Add("cursor", cursor.ToString());
+            }
+            if(stringify_ids != null) {
+                parameters.Add("stringify_ids", stringify_ids.ToString());
+            }
+            if(count != null) {
+                parameters.Add("count", count.ToString());
+            }
+            StartCoroutine(Get(endpointUrl, parameters, GetFriendsIdsCallback));
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        public virtual void GetFriendsIdsCallback(bool isSuccess, string response)
+        {
+
+        }
+
+        /// <summary>
+        /// Requests / 15-min window (user auth) 900
+        /// </summary>
+        public void GetUsersLookup(string user_id = null, string screen_name = null, bool? include_entities = null, bool? tweet_mode = null)
+        {
+            string requestUrl = "https://api.twitter.com/1.1/users/lookup.json";
+            Dictionary<string, string> parameters = new Dictionary<string, string>();
+            if (user_id != null) {
+                parameters.Add("user_id", user_id);
+            }
+            if (screen_name != null) {
+                parameters.Add("screen_name", screen_name);
+            }
+            if (include_entities != null) {
+                parameters.Add("include_entities", include_entities.ToString());
+            }
+            if(tweet_mode != null) {
+                parameters.Add("tweet_mode", tweet_mode.ToString());
+            }
+            StartCoroutine(Get(requestUrl, parameters, GetUsersLookupCallback));
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        public virtual void GetUsersLookupCallback(bool isSucees, string response)
+        {
+
         }
 
         #endregion

@@ -5,7 +5,7 @@ using UnityEngine.UI;
 using Unitter;
 
 [RequireComponent(typeof(Client))]
-public class Sample : MonoBehaviour
+public class Example2 : MonoBehaviour
 {
     public Client client;
     //Your app Keys
@@ -21,12 +21,12 @@ public class Sample : MonoBehaviour
         //Set Consumer Key and Consumer Secret.
         client.SetConsumerKeySecret(consumerKey, consumerSecret);
         //POST request_token URL.
-        StartCoroutine(client.Post(requestTokenUrl, new Dictionary<string, string>(), LogAuthUrl));
+        StartCoroutine(client.Post(requestTokenUrl, new Dictionary<string, string>(), OpenAuthorizeUrl));
     }
 
     //STEP 2
     string oauthToken;
-    void LogAuthUrl(bool isSuccess, string response)
+    void OpenAuthorizeUrl(bool isSuccess, string response)
     {
         if (isSuccess) {
             //Get parameters from response text.
@@ -71,19 +71,19 @@ public class Sample : MonoBehaviour
 
     //SETP 5
     // Excute GetUserTimeLine Method (with button etc.).
-    public void GetUserTimeLine()
+    public void GetUsersTimeline()
     {
-        string userTimelineUrl = "https://api.twitter.com/1.1/statuses/home_timeline.json";
+        string endpointUrl = "https://api.twitter.com/1.1/statuses/home_timeline.json";
         //Set parameters.
         Dictionary<string, string> parameters = new Dictionary<string, string>();
         parameters.Add("count", "20");
         //GET uset timeline.
-        StartCoroutine(client.Get(userTimelineUrl, parameters, GetUserTimeLineCallback));
+        StartCoroutine(client.Get(endpointUrl, parameters, GetUsersTimelineCallback));
     }
 
     //STEP 6
     //You get your timeline.
-    void GetUserTimeLineCallback(bool isSuccess, string response)
+    void GetUsersTimelineCallback(bool isSuccess, string response)
     {
         if (isSuccess) {
             List<Tweet> tweets = JsonHelper.ListFromJson<Tweet>(response);

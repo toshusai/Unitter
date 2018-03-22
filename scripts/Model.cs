@@ -1,27 +1,5 @@
-﻿using System.Collections.Generic;
-using UnityEngine;
-
-namespace Unitter
+﻿namespace Unitter
 {
-    public class JsonHelper
-    {
-        /// <summary>
-        /// Convert array root to one root and return List&lt;T&gt;.
-        /// </summary>
-        public static List<T> ListFromJson<T>(string json)
-        {
-            var listJson = "{ \"list\": " + json + "}";
-            Wrapper<T> wrapper = JsonUtility.FromJson<Wrapper<T>>(listJson);
-            return wrapper.list;
-        }
-
-        [System.Serializable]
-        class Wrapper<T>
-        {
-            public List<T> list = null;
-        }
-    }
-
     [System.Serializable]
     public class User
     {
@@ -35,16 +13,16 @@ namespace Unitter
         public string url;
         public Entitiy entities;
         public bool @protected;
-        public int followers_count;
-        public int friends_count;
-        public int listed_count;
+        public long followers_count;
+        public long friends_count;
+        public long listed_count;
         public string created_at;
-        public int favourites_count;
-        public int utc_offset;
+        public long favourites_count;
+        public long utc_offset;
         public string time_zone;
         public bool geo_enabled;
         public bool verified;
-        public int statuses_count;
+        public long statuses_count;
         public string lang;
         // If you add this member, deserialization will be performed recursively. 
         //public Tweet status;

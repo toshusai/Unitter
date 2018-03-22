@@ -10,7 +10,7 @@ namespace Unitter
         /// <summary>
         /// Set Renderer.material.mainTexture from image URL
         /// </summary>
-        public IEnumerator SetTexture(string url, FilterMode filterMode = FilterMode.Bilinear, Vector4? border_ = null)
+        public IEnumerator SetTexture(string url)
         {
             WWW www = new WWW(url);
             yield return www;
