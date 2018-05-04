@@ -51,27 +51,4 @@
         public bool suspended;
         public bool needs_phone_verification;
     }
-
-    [System.Serializable]
-    public class Tweet
-    {
-        public string created_at;
-        public string text;
-        public User user;
-    }
-
-    [System.Serializable]
-    public class Entitiy
-    {
-        public float id;
-    }
-
-    [System.Serializable]
-    public class Id
-    {
-        public long[] ids;
-    }
-
-
-
 }

@@ -30,7 +30,7 @@ public class Example : MonoBehaviour
     }
 
     // STEP 4
-    // Call in inspecter window.
+    // Call by inspecter window.
     [ContextMenu("GetTimeline")]
     public void GetTimeline()
     {

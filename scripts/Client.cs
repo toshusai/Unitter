@@ -327,11 +327,6 @@ namespace Unitter
             
         }
 
-        public virtual void TestVirtual()
-        {
-
-        }
-
         /// <summary>
         /// Requests / 15-min window (user auth) 900
         /// </summary>
@@ -421,6 +416,62 @@ namespace Unitter
         {
 
         }
+
+        public void GetSearchTweets(string q, string geocode = null, string lang = null, string locale = null, string result_type = null, int? count = null, string until = null, long? since_id = null, long? max_id = null, bool? include_entities = null)
+        {
+            string requestUrl = "https://api.twitter.com/1.1/search/tweets.json";
+            Dictionary<string, string> parameters = new Dictionary<string, string>();
+            parameters.Add("q", q);
+            if(geocode != null) {
+                parameters.Add("geocode", geocode);
+            }
+            if(lang != null) {
+                parameters.Add("lang", lang);
+            }
+            if(locale != null) {
+                parameters.Add("locale", locale);
+            }
+            if(result_type != null) {
+                parameters.Add("result_type", result_type);
+            }
+            if(count != null) {
+                parameters.Add("count", count.ToString());
+            }
+            if(until != null) {
+                parameters.Add("until", until);
+            }
+            if(since_id != null) {
+                parameters.Add("since_id", since_id.ToString());
+            }
+            if(max_id != null) {
+                parameters.Add("max_id", max_id.ToString());
+            }
+            if (include_entities != null) {
+                parameters.Add("include_entities", include_entities.ToString());
+            }
+            StartCoroutine(Get(requestUrl, parameters, GetSearchTweetsCallback));
+        }
+
+        
+        /// <summary>
+        /// 
+        /// </summary>
+        public virtual void GetSearchTweetsCallback(bool isSucees, string response)
+        {
+
+        }
+
+        /*
+        public void PostMediaUpload(Byte? media = null, string media_data = null)
+        {
+            if(media == null && media_data == null) {
+                return;
+            }
+            string requestUrl = "https://upload.twitter.com/1.1/media/upload.json";
+            Dictionary<string, string> parameters = new Dictionary<string, string>();
+        }
+        */
+        
 
         #endregion
     }

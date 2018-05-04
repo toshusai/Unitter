@@ -1,10 +1,39 @@
 # Unitter
 ## Twitter API Library for Unity.
 
-## How to Use
-- Example 1  
+## Usage
+- Example 1 (Simple method).  
+Inherit the "Client" class and override the Callback method and use it.  
+Check "example/ExampleClient" and "example/Example.cs"
+```cs
+public class ExampleClient : Client {
+
+    public override void PostOAuthRequestTokenCallback(bool isSuccess, string response)
+    {
+        Debug.Log(response);
+    }
+}
+```
+```cs
+public class Example : MonoBehaviour
+{
+    public ExampleClient client;
+    //Your app Keys
+    public string consumerKey = "";
+    public string consumerSecret = "";
+
+    private void Start()
+    {
+        client.SetConsumerKeySecret(consumerKey, consumerSecret);
+        client.PostOAuthRequestToken();
+    }
+}
+```
+
+
+- Example 2  
 Use "Client" class "Post" method directly.  
-Check "example/Example.cs".
+Check "example/Example2.cs".
 ```cs
 void Start()
 {
@@ -25,34 +54,6 @@ void OpenAuthorizeUrl(bool isSuccess, string response)
         Application.OpenURL("https://api.twitter.com/oauth/authorize?oauth_token=" + oauthToken);
     } else {
         Debug.Log(response);
-    }
-}
-```
-
-- Example 2  
-Inherit the "Client" class and override the Callback method and use it.  
-Check "example/ExampleClient" and "example/Example2.cs"
-```cs
-public class ExampleClient : Client {
-
-    public override void PostOAuthRequestTokenCallback(bool isSuccess, string response)
-    {
-        Debug.Log(response);
-    }
-}
-```
-```cs
-public class Example2 : MonoBehaviour
-{
-    public ExampleClient client;
-    //Your app Keys
-    public string consumerKey = "";
-    public string consumerSecret = "";
-
-    private void Start()
-    {
-        client.SetConsumerKeySecret(consumerKey, consumerSecret);
-        client.PostOAuthRequestToken();
     }
 }
 ```
