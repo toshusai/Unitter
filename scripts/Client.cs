@@ -1,4 +1,5 @@
 ﻿using System;
+using System.IO;
 using System.Text;
 using System.Security.Cryptography;
 using System.Collections;
@@ -6,10 +7,22 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Networking;
 
+
 namespace Unitter
 {
     public class Client : MonoBehaviour
     {
+        const string POST = "POST";
+        const string GET = "GET";
+
+        const string BASE_URL = "https://api.twitter.com/1.1/";
+
+        const string STATUS_HOME_TIMELINE_CACH = "/status_home_timeline.json";
+        const string USERS_SHOW_CACH = "/users_show.json";
+        const string USERS_LOOKUP_CACH = "/users_lookup.json";
+        const string FRIENDS_IDS_CACH = "/friends_ids.json";
+        const string SEARCH_TEWWTS_CACH = "/search_tweets.json";
+
         protected string consumerKey = "";
         protected string consumerSecret = "";
         protected string accessToken = "";
@@ -67,7 +80,7 @@ namespace Unitter
         {
             WWWForm form = new WWWForm();
             UnityWebRequest request = UnityWebRequest.Post(requestURl, form);
-            yield return StartCoroutine(SendRequest(request, requestURl, "POST", parameters, callback));
+            yield return SendRequest(request, requestURl, POST, parameters, callback);
         }
 
         /// <summary>
@@ -75,7 +88,7 @@ namespace Unitter
         /// </summary>
         public IEnumerator Get(string requestURl, Dictionary<string, string> parameters, response callback)
         {
-            parameters = SortDictionary(parameters);
+            parameters = ClientHelper.SortDictionary(parameters);
 
             string requestParameterUrl = requestURl + "?";
             foreach (KeyValuePair<string, string> pair in parameters) {
@@ -84,7 +97,7 @@ namespace Unitter
             requestParameterUrl = requestParameterUrl.Remove(requestParameterUrl.Length - 1);
 
             UnityWebRequest request = UnityWebRequest.Get(requestParameterUrl);
-            yield return SendRequest(request, requestURl, "GET", parameters, callback);
+            yield return SendRequest(request, requestURl, GET, parameters, callback);
         }
 
         /// <summary>
@@ -113,21 +126,7 @@ namespace Unitter
         {
             WWWForm form = new WWWForm();
             UnityWebRequest request = UnityWebRequest.Post(requestURl, form);
-            yield return StartCoroutine(SendRequest(request, requestURl, "POST", new Dictionary<string, string>(), callback));
-        }
-
-        #endregion
-
-        #region Helper of request method
-
-        public static Dictionary<string, string> GetParametersFromResponse(string response)
-        {
-            Dictionary<string, string> parameters = new Dictionary<string, string>();
-            string[] split = response.Split(new char[] { '&', '=' });
-            for (int i = 0; i < split.Length / 2; i++) {
-                parameters.Add(split[i * 2], split[i * 2 + 1]);
-            }
-            return parameters;
+            yield return StartCoroutine(SendRequest(request, requestURl, POST, new Dictionary<string, string>(), callback));
         }
 
         #endregion
@@ -137,33 +136,36 @@ namespace Unitter
         /// <summary>
         /// Generate request header for Twitter API Authorization.
         /// </summary>
-        public string GenerateHeaderAuthorization(string requestUrl, string requestMethod, Dictionary<string, string> parameters)
+        private string GenerateHeaderAuthorization(string requestUrl, string requestMethod, Dictionary<string, string> parameters)
         {
             //Set default parameters.
-            if (!parameters.ContainsKey("oauth_callback")) {
+            if (!parameters.ContainsKey("oauth_callback"))
+            {
                 parameters.Add("oauth_callback", "oob");
             }
             parameters.Add("oauth_consumer_key", consumerKey);
-            parameters.Add("oauth_nonce", RandomString(8));
+            parameters.Add("oauth_nonce", ClientHelper.RandomString(8));
             parameters.Add("oauth_signature_method", "HMAC-SHA1");
-            parameters.Add("oauth_timestamp", GetUnixTimeStamp());
+            parameters.Add("oauth_timestamp", ClientHelper.GetUnixTimeStamp());
             parameters.Add("oauth_version", "1.0");
-            if (parameters.ContainsKey("oauth_token") == false) {
+            if (parameters.ContainsKey("oauth_token") == false)
+            {
                 parameters.Add("oauth_token", accessToken);
             }
 
             // Sort parameters.
-            parameters = SortDictionary(parameters);
+            parameters = ClientHelper.SortDictionary(parameters);
             // Add signature to parameters.
             parameters.Add("oauth_signature", GenerateSignature(requestUrl, requestMethod, parameters));
 
             // Generate header "OAuth key=value,key=value,...".
             string authorization = "OAuth ";
-            foreach (KeyValuePair<string, string> pair in parameters) {
+            foreach (KeyValuePair<string, string> pair in parameters)
+            {
                 authorization += String.Format("{0}=\"{1}\",", Uri.EscapeDataString(pair.Key), Uri.EscapeDataString(pair.Value));
             }
             // Remove last ",".
-            authorization = RemoveLastString(authorization);
+            authorization = ClientHelper.RemoveLastString(authorization);
             return authorization;
         }
 
@@ -174,12 +176,13 @@ namespace Unitter
         {
             // Convert to "Key=Value&Key=Value&..." format.
             string parametersString = "";
-            foreach (KeyValuePair<string, string> pair in parameters) {
+            foreach (KeyValuePair<string, string> pair in parameters)
+            {
                 parametersString += Uri.EscapeDataString(pair.Key) + "=" + Uri.EscapeDataString(pair.Value) + "&";
             }
 
             // Remove last "&".
-            parametersString = RemoveLastString(parametersString);
+            parametersString = ClientHelper.RemoveLastString(parametersString);
 
             // Generate key and data for signature.
             string signatureKey = Uri.EscapeDataString(consumerSecret) + "&" + Uri.EscapeDataString(accessTokenSecret);
@@ -197,47 +200,22 @@ namespace Unitter
 
         #endregion
 
-        #region Private helper
-
+        #region Helper of request method
         /// <summary>
-        /// Remove a char of last from string.
+        /// Gets the query from response.
         /// </summary>
-        private string RemoveLastString(string str)
+        public static Dictionary<string, string> GetParametersFromResponse(string response)
         {
-            return str.Remove(str.Length - 1);
-        }
-
-        /// <summary>
-        /// Return sorted Dictionary&lt;string, string&gt; (Not SortedDictionary&lt;string, string&gt;).
-        /// </summary>
-        private Dictionary<string, string> SortDictionary(Dictionary<string, string> dictionary)
-        {
-            SortedDictionary<string, string> sortedDictionary = new SortedDictionary<string, string>(dictionary);
-            return new Dictionary<string, string>(sortedDictionary);
-        }
-
-        /// <summary>
-        /// Generate random string.
-        /// </summary>
-        private string RandomString(int length = 8)
-        {
-            string str = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-            StringBuilder randomString = new StringBuilder();
-            for (int i = 0; i < length; i++) {
-                randomString.Append(str[UnityEngine.Random.Range(0, str.Length)]);
+            Dictionary<string, string> parameters = new Dictionary<string, string>();
+            string[] split = response.Split(new char[] { '&', '=' });
+            for (int i = 0; i < split.Length / 2; i++) {
+                parameters.Add(split[i * 2], split[i * 2 + 1]);
             }
-            return randomString.ToString();
-        }
-
-        /// <summary>
-        /// Gets the unix time stamp.
-        /// </summary>
-        private static string GetUnixTimeStamp()
-        {
-            return Convert.ToInt32((DateTime.UtcNow.Subtract(new DateTime(1970, 1, 1))).TotalSeconds).ToString();
+            return parameters;
         }
 
         #endregion
+
 
         #region virtual Rest API
 
@@ -288,34 +266,20 @@ namespace Unitter
                 // Set Access Token and Access Token Secret.
                 SetAccessToken(parameters["oauth_token"]);
                 SetAccessTokenSecret(parameters["oauth_token_secret"]);
+            }else{
+                Debug.LogError("HTTP ERROR : " + response);
             }
         }
 
         /// <summary>
         /// 
         /// </summary>
-        public void GetStatuesHomeTimeline(int? count = null, long? since_id = null, long? max_id = null, bool? trim_user = null, bool? exclude_replies = null, bool? include_entities = null)
+        public void GetStatuesHomeTimeline(Dictionary<string, string> parameters)
         {
-            string endpointUrl = "https://api.twitter.com/1.1/statuses/home_timeline.json";
-            Dictionary<string, string> parameters = new Dictionary<string, string>();
-            if (count != null) {
-                parameters.Add("count", count.ToString());
+            if(ClientHelper.SaveCach(Application.temporaryCachePath + STATUS_HOME_TIMELINE_CACH, GetStatuesHomeTimelineCallback, 60)){
+                return;
             }
-            if(since_id != null) {
-                parameters.Add("since_id", since_id.ToString());
-            }
-            if(max_id != null) {
-                parameters.Add("max_id", max_id.ToString());
-            }
-            if(trim_user != null) {
-                parameters.Add("trim_user", trim_user.ToString());
-            }
-            if(exclude_replies != null) {
-                parameters.Add("exclude_replies", exclude_replies.ToString());
-            }
-            if(include_entities != null) {
-                parameters.Add("include_entities", include_entities.ToString());
-            }
+            string endpointUrl = BASE_URL + "statuses/home_timeline.json";
             StartCoroutine(Get(endpointUrl, parameters, GetStatuesHomeTimelineCallback));
         }
 
@@ -324,25 +288,21 @@ namespace Unitter
         /// </summary>
         public virtual void GetStatuesHomeTimelineCallback(bool isSuccess, string response)
         {
-            
+            if (isSuccess)
+            {
+                File.WriteAllText(Application.temporaryCachePath + STATUS_HOME_TIMELINE_CACH, response);
+            }
         }
 
         /// <summary>
         /// Requests / 15-min window (user auth) 900
         /// </summary>
-        public void GetUsersShow(long? user_id = null, string screen_name = null, bool? include_entities = null)
+        public void GetUsersShow(Dictionary<string, string> parameters)
         {
-            string endpointUrl = "https://api.twitter.com/1.1/users/show.json";
-            Dictionary<string, string> parameters = new Dictionary<string, string>();
-            if (user_id != null) {
-                parameters.Add("user_id", user_id.ToString());
+            if(ClientHelper.SaveCach(Application.temporaryCachePath + USERS_SHOW_CACH, GetUsersShowCallback, 1)){
+                return;
             }
-            if (screen_name != null) {
-                parameters.Add("screen_name", screen_name);
-            }
-            if(include_entities != null) {
-                parameters.Add("include_entities", include_entities.ToString());
-            }
+            string endpointUrl = BASE_URL + "users/show.json";
             StartCoroutine(Get(endpointUrl, parameters, GetUsersShowCallback));
         }
 
@@ -351,31 +311,20 @@ namespace Unitter
         /// </summary>
         public virtual void GetUsersShowCallback(bool isSuccess, string response)
         {
-
+            if(isSuccess){
+                File.WriteAllText(Application.temporaryCachePath + USERS_SHOW_CACH, response);
+            }
         }
 
         /// <summary>
         /// Requests / 15-min window (user auth) 15
         /// </summary>
-        public void GetFriendsIds(long? user_id = null, string screen_name = null, long? cursor = null, bool? stringify_ids = null, int? count = null)
+        public void GetFriendsIds(Dictionary<string, string> parameters)
         {
-            string endpointUrl = "https://api.twitter.com/1.1/friends/ids.json";
-            Dictionary<string, string> parameters = new Dictionary<string, string>();
-            if (user_id != null) {
-                parameters.Add("user_id", user_id.ToString());
+            if(ClientHelper.SaveCach(Application.temporaryCachePath + FRIENDS_IDS_CACH, GetFriendsIdsCallback, 60)){
+                return;
             }
-            if (screen_name != null) {
-                parameters.Add("screen_name", screen_name);
-            }
-            if(cursor != null) {
-                parameters.Add("cursor", cursor.ToString());
-            }
-            if(stringify_ids != null) {
-                parameters.Add("stringify_ids", stringify_ids.ToString());
-            }
-            if(count != null) {
-                parameters.Add("count", count.ToString());
-            }
+            string endpointUrl = BASE_URL + "friends/ids.json";
             StartCoroutine(Get(endpointUrl, parameters, GetFriendsIdsCallback));
         }
 
@@ -384,71 +333,46 @@ namespace Unitter
         /// </summary>
         public virtual void GetFriendsIdsCallback(bool isSuccess, string response)
         {
-
+            if (isSuccess)
+            {
+                File.WriteAllText(Application.temporaryCachePath + FRIENDS_IDS_CACH, response);
+            }
         }
 
         /// <summary>
         /// Requests / 15-min window (user auth) 900
         /// </summary>
-        public void GetUsersLookup(string user_id = null, string screen_name = null, bool? include_entities = null, bool? tweet_mode = null)
+        public void GetUsersLookup(Dictionary<string, string> parameters)
         {
-            string requestUrl = "https://api.twitter.com/1.1/users/lookup.json";
-            Dictionary<string, string> parameters = new Dictionary<string, string>();
-            if (user_id != null) {
-                parameters.Add("user_id", user_id);
+            if (ClientHelper.SaveCach(Application.temporaryCachePath + USERS_LOOKUP_CACH, GetFriendsIdsCallback, 1))
+            {
+                return;
             }
-            if (screen_name != null) {
-                parameters.Add("screen_name", screen_name);
-            }
-            if (include_entities != null) {
-                parameters.Add("include_entities", include_entities.ToString());
-            }
-            if(tweet_mode != null) {
-                parameters.Add("tweet_mode", tweet_mode.ToString());
-            }
+            string requestUrl = BASE_URL + "users/lookup.json";
             StartCoroutine(Get(requestUrl, parameters, GetUsersLookupCallback));
         }
 
         /// <summary>
         /// 
         /// </summary>
-        public virtual void GetUsersLookupCallback(bool isSucees, string response)
+        public virtual void GetUsersLookupCallback(bool isSuccess, string response)
         {
-
+            if (isSuccess)
+            {
+                File.WriteAllText(Application.temporaryCachePath + USERS_LOOKUP_CACH, response);
+            }
         }
 
-        public void GetSearchTweets(string q, string geocode = null, string lang = null, string locale = null, string result_type = null, int? count = null, string until = null, long? since_id = null, long? max_id = null, bool? include_entities = null)
+        /// <summary>
+        /// Gets the search tweets.
+        /// </summary>
+        public void GetSearchTweets(Dictionary<string, string> parameters)
         {
-            string requestUrl = "https://api.twitter.com/1.1/search/tweets.json";
-            Dictionary<string, string> parameters = new Dictionary<string, string>();
-            parameters.Add("q", q);
-            if(geocode != null) {
-                parameters.Add("geocode", geocode);
+            if (ClientHelper.SaveCach(Application.temporaryCachePath + SEARCH_TEWWTS_CACH, GetFriendsIdsCallback, 1))
+            {
+                return;
             }
-            if(lang != null) {
-                parameters.Add("lang", lang);
-            }
-            if(locale != null) {
-                parameters.Add("locale", locale);
-            }
-            if(result_type != null) {
-                parameters.Add("result_type", result_type);
-            }
-            if(count != null) {
-                parameters.Add("count", count.ToString());
-            }
-            if(until != null) {
-                parameters.Add("until", until);
-            }
-            if(since_id != null) {
-                parameters.Add("since_id", since_id.ToString());
-            }
-            if(max_id != null) {
-                parameters.Add("max_id", max_id.ToString());
-            }
-            if (include_entities != null) {
-                parameters.Add("include_entities", include_entities.ToString());
-            }
+            string requestUrl = BASE_URL + "search/tweets.json";
             StartCoroutine(Get(requestUrl, parameters, GetSearchTweetsCallback));
         }
 
@@ -456,22 +380,13 @@ namespace Unitter
         /// <summary>
         /// 
         /// </summary>
-        public virtual void GetSearchTweetsCallback(bool isSucees, string response)
+        public virtual void GetSearchTweetsCallback(bool isSuccess, string response)
         {
-
-        }
-
-        /*
-        public void PostMediaUpload(Byte? media = null, string media_data = null)
-        {
-            if(media == null && media_data == null) {
-                return;
+            if (isSuccess)
+            {
+                File.WriteAllText(Application.temporaryCachePath + USERS_LOOKUP_CACH, response);
             }
-            string requestUrl = "https://upload.twitter.com/1.1/media/upload.json";
-            Dictionary<string, string> parameters = new Dictionary<string, string>();
         }
-        */
-        
 
         #endregion
     }

@@ -1,11 +1,9 @@
 # Unitter
-## Twitter API Library for Unity.
+## Unity用のTwitter APIライブラリ
 
-## Usage
-- Example  
-`using Unitter;`  
-Inherit the "Client" class and override the Callback method and use it.  
-Check "example/ExampleClient" and "example/Example.cs"
+## 使い方  
+名前空間 "Unitter" の "Client" を継承した独自クラスを作成し、使いたいAPIののコールバックメソッドをオーバーライドして、APIをリクエストするメソッドを使います.  
+### 独自クラスの例
 ```cs
 public class ExampleClient : Client
 {
@@ -49,19 +47,20 @@ public class ExampleClient : Client
     }
 }
 ```
+### APIリクエストのメソッドを使うスクリプトの例
 ```cs
 public class ExampleScript : MonoBehaviour
 {
     [SerializeField]
     public ExampleClient client;
-    //Your app Keys
+    // Twitter の App のキー
     [SerializeField]
     public string consumerKey = "";
     [SerializeField]
     public string consumerSecret = "";
 
     // STEP 1
-    // Open Authorize URL.
+    // 認証ページを開く
     [ContextMenu("OpenAuthURL")]
     private void OpenAuthURL()
     {
@@ -70,11 +69,11 @@ public class ExampleScript : MonoBehaviour
     }
 
     // STEP 2
-    // Input PIN.
+    // 認証ページに表示されるPINを入れる（インスペクター等で）
     public int pin = -1;
 
     // STEP 3
-    // Set Access Token.
+    // アクセストークンを設定する
     [ContextMenu("SetAccessToken")]
     public void SetAccessToken()
     {
@@ -82,7 +81,7 @@ public class ExampleScript : MonoBehaviour
     }
 
     // STEP 4
-    // Get timeline to console.
+    // タイムラインをデバッグログとして出力する
     [ContextMenu("GetTimeline")]
     public void GetTimeline()
     {
@@ -96,9 +95,14 @@ public class ExampleScript : MonoBehaviour
 
 ```
 
-## Extra
-- There is a script to set texture, sprite, RawImage from image URL.  
-Check "scripts/TextureDownloader, SpriteDownloader, ImageDownloader".  
+## おまけ
+- 画像のURLからSprite Texture RawImageに変換するスクリプト.  
+  - "scripts/TextureDownloader"
+  - "scripts/SpriteDownloader"  
+  - "scripts/ImageDownloader"  
 
-## Lisense
+SimpleJSON(https://github.com/Bunny83/SimpleJSON)を使っています.  
+`tweets[i]["user"]["name"]`のようにJSONをオブジェクトに変換して扱えます.
+
+## ライセンス
 MIT Lisense.

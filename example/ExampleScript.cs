@@ -2,27 +2,31 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-[RequireComponent(typeof(ExampleClient))]
-public class Example : MonoBehaviour
+public class ExampleScript : MonoBehaviour
 {
+    [SerializeField]
     public ExampleClient client;
     //Your app Keys
+    [SerializeField]
     public string consumerKey = "";
+    [SerializeField]
     public string consumerSecret = "";
 
     // STEP 1
-    private void Start()
+    // Open Authorize URL.
+    [ContextMenu("OpenAuthURL")]
+    private void OpenAuthURL()
     {
         client.SetConsumerKeySecret(consumerKey, consumerSecret);
-        // Open Authorize URL.
         client.PostOAuthRequestToken();
     }
 
     // STEP 2
-    // Enter pin by inspecter.
+    // Input PIN.
     public int pin = -1;
+
     // STEP 3
-    // Call by inspecter window.
+    // Set Access Token.
     [ContextMenu("SetAccessToken")]
     public void SetAccessToken()
     {
@@ -30,10 +34,14 @@ public class Example : MonoBehaviour
     }
 
     // STEP 4
-    // Call by inspecter window.
+    // Get timeline to console.
     [ContextMenu("GetTimeline")]
     public void GetTimeline()
     {
-        client.GetStatuesHomeTimeline(count: 200, include_entities: false);
+        Dictionary<string, string> parameters = new Dictionary<string, string>{
+            {"count", "200"},
+            {"include_entities", "false"}
+        };
+        client.GetStatuesHomeTimeline(parameters);
     }
 }
