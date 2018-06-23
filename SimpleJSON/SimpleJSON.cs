@@ -23,7 +23,6 @@
  */
 
 /* 
- * I changed the namespace of the original code from SimpleJSON to Unitter.
  * Here is the original copyright notice for Markus Göbel (Bunny83):
  */
 
@@ -70,6 +69,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Text;
+using UnityEngine;
 
 namespace Unitter
 {
@@ -194,7 +194,7 @@ namespace Unitter
         #region common interface
 
         public static bool forceASCII = false; // Use Unicode by default
-        public static bool longAsString = false; // lazy creator creates a JSONString instead of JSONNumber
+        public static bool longAsString = true; // lazy creator creates a JSONString instead of JSONNumber
 
         public abstract JSONNodeType Tag { get; }
 
@@ -507,6 +507,7 @@ namespace Unitter
 
         private static JSONNode ParseElement(string token, bool quoted)
         {
+            
             if (quoted)
                 return token;
             string tmp = token.ToLower();
@@ -514,9 +515,16 @@ namespace Unitter
                 return tmp == "true";
             if (tmp == "null")
                 return JSONNull.CreateOrGet();
+            long val;
+            if (long.TryParse(token, out val))
+            {
+                return val;
+            }
+            /*
             double val;
             if (double.TryParse(token, NumberStyles.Float, CultureInfo.InvariantCulture, out val))
                 return val;
+            */
             else
                 return token;
         }
@@ -997,9 +1005,15 @@ namespace Unitter
             get { return m_Data.ToString(CultureInfo.InvariantCulture); }
             set
             {
+                long v;
+                if (long.TryParse(value, out v))
+                    m_Data = v;
+
+                /*
                 double v;
                 if (double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out v))
                     m_Data = v;
+                */
             }
         }
 

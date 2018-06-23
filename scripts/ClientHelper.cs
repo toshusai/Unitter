@@ -54,7 +54,6 @@ namespace Unitter
             if (File.Exists(cachPath))
             {
                 DateTime lastTime = File.GetLastWriteTime(cachPath);
-                Debug.Log((DateTime.Now - lastTime).Seconds);
                 if ((DateTime.Now - lastTime).Seconds < interval)
                 {
                     string response = File.ReadAllText(cachPath);

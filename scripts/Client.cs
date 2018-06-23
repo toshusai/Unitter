@@ -21,12 +21,15 @@ namespace Unitter
         const string USERS_SHOW_CACH = "/users_show.json";
         const string USERS_LOOKUP_CACH = "/users_lookup.json";
         const string FRIENDS_IDS_CACH = "/friends_ids.json";
+        const string FOLLOWERS_IDS_CACH = "/followes_ids.json";
         const string SEARCH_TEWWTS_CACH = "/search_tweets.json";
 
         protected string consumerKey = "";
         protected string consumerSecret = "";
         protected string accessToken = "";
         protected string accessTokenSecret = "";
+        protected string userId = "";
+        protected string scrrenName = "";
 
         //Callback method
         public delegate void response(bool isSuccess, string response);
@@ -69,6 +72,43 @@ namespace Unitter
             accessTokenSecret = accessTokenSecret_;
         }
 
+        public string GetUserID()
+        {
+            return userId;
+        }
+
+        public string GetScreenName()
+        {
+            return scrrenName;
+        }
+
+        public void SaveToken()
+        {
+            string token = "{" +
+                String.Format("access_token: \"{0}\",", accessToken) +
+                      String.Format("access_token_secret: \"{0}\",", accessTokenSecret) +
+                      String.Format("screen_name: \"{0}\",", scrrenName) +
+                      String.Format("user_id: \"{0}\"", userId) +
+                "}";
+            File.WriteAllText(Application.persistentDataPath + "/token.json", token);
+        }
+
+        public bool LoadToken()
+        {
+            string path = Application.persistentDataPath + "/token.json";
+            if (File.Exists(path))
+            {
+                JSONNode token = JSON.Parse(File.ReadAllText(path));
+                accessToken = token["access_token"];
+                accessTokenSecret = token["access_token_secret"];
+                scrrenName = token["screen_name"];
+                userId = token["user_id"];
+                return true;
+            }else{
+                return false;
+            }
+        }
+
         #endregion
 
         #region Request base
@@ -91,7 +131,8 @@ namespace Unitter
             parameters = ClientHelper.SortDictionary(parameters);
 
             string requestParameterUrl = requestURl + "?";
-            foreach (KeyValuePair<string, string> pair in parameters) {
+            foreach (KeyValuePair<string, string> pair in parameters)
+            {
                 requestParameterUrl += pair.Key + "=" + pair.Value + "&";
             }
             requestParameterUrl = requestParameterUrl.Remove(requestParameterUrl.Length - 1);
@@ -108,9 +149,12 @@ namespace Unitter
             request.SetRequestHeader("Content-Type", "application/x-www-form-urlencoded");
             request.SetRequestHeader("Authorization", GenerateHeaderAuthorization(requestURl, requestMethod, parameters));
             yield return request.SendWebRequest();
-            if (request.responseCode == 200 || request.responseCode == 201) {
+            if (request.responseCode == 200 || request.responseCode == 201)
+            {
                 callback(true, request.downloadHandler.text);
-            } else {
+            }
+            else
+            {
                 callback(false, request.downloadHandler.text);
             }
         }
@@ -208,7 +252,8 @@ namespace Unitter
         {
             Dictionary<string, string> parameters = new Dictionary<string, string>();
             string[] split = response.Split(new char[] { '&', '=' });
-            for (int i = 0; i < split.Length / 2; i++) {
+            for (int i = 0; i < split.Length / 2; i++)
+            {
                 parameters.Add(split[i * 2], split[i * 2 + 1]);
             }
             return parameters;
@@ -261,12 +306,17 @@ namespace Unitter
         /// </summary>
         public virtual void PostOAuthAccessTokenCallback(bool isSuccess, string response)
         {
-            if (isSuccess) {
+            if (isSuccess)
+            {
                 Dictionary<string, string> parameters = Client.GetParametersFromResponse(response);
                 // Set Access Token and Access Token Secret.
                 SetAccessToken(parameters["oauth_token"]);
                 SetAccessTokenSecret(parameters["oauth_token_secret"]);
-            }else{
+                userId = parameters["user_id"];
+                scrrenName = parameters["screen_name"];
+            }
+            else
+            {
                 Debug.LogError("HTTP ERROR : " + response);
             }
         }
@@ -276,21 +326,23 @@ namespace Unitter
         /// </summary>
         public void GetStatuesHomeTimeline(Dictionary<string, string> parameters)
         {
-            if(ClientHelper.SaveCach(Application.temporaryCachePath + STATUS_HOME_TIMELINE_CACH, GetStatuesHomeTimelineCallback, 60)){
+            if (ClientHelper.SaveCach(Application.temporaryCachePath + STATUS_HOME_TIMELINE_CACH, GetStatuesHomeTimelineCallback, 60))
+            {
                 return;
             }
             string endpointUrl = BASE_URL + "statuses/home_timeline.json";
             StartCoroutine(Get(endpointUrl, parameters, GetStatuesHomeTimelineCallback));
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
         public virtual void GetStatuesHomeTimelineCallback(bool isSuccess, string response)
         {
             if (isSuccess)
             {
                 File.WriteAllText(Application.temporaryCachePath + STATUS_HOME_TIMELINE_CACH, response);
+            }
+            else
+            {
+                Debug.LogError("HTTP error : " + response);
             }
         }
 
@@ -299,20 +351,23 @@ namespace Unitter
         /// </summary>
         public void GetUsersShow(Dictionary<string, string> parameters)
         {
-            if(ClientHelper.SaveCach(Application.temporaryCachePath + USERS_SHOW_CACH, GetUsersShowCallback, 1)){
+            if (ClientHelper.SaveCach(Application.temporaryCachePath + USERS_SHOW_CACH, GetUsersShowCallback, 1))
+            {
                 return;
             }
             string endpointUrl = BASE_URL + "users/show.json";
             StartCoroutine(Get(endpointUrl, parameters, GetUsersShowCallback));
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
         public virtual void GetUsersShowCallback(bool isSuccess, string response)
         {
-            if(isSuccess){
+            if (isSuccess)
+            {
                 File.WriteAllText(Application.temporaryCachePath + USERS_SHOW_CACH, response);
+            }
+            else
+            {
+                Debug.LogError("HTTP error : " + response);
             }
         }
 
@@ -321,21 +376,48 @@ namespace Unitter
         /// </summary>
         public void GetFriendsIds(Dictionary<string, string> parameters)
         {
-            if(ClientHelper.SaveCach(Application.temporaryCachePath + FRIENDS_IDS_CACH, GetFriendsIdsCallback, 60)){
+            if (ClientHelper.SaveCach(Application.temporaryCachePath + FRIENDS_IDS_CACH, GetFriendsIdsCallback, 60))
+            {
                 return;
             }
             string endpointUrl = BASE_URL + "friends/ids.json";
             StartCoroutine(Get(endpointUrl, parameters, GetFriendsIdsCallback));
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
         public virtual void GetFriendsIdsCallback(bool isSuccess, string response)
         {
             if (isSuccess)
             {
                 File.WriteAllText(Application.temporaryCachePath + FRIENDS_IDS_CACH, response);
+            }
+            else
+            {
+                Debug.LogError("HTTP error : " + response);
+            }
+        }
+
+        /// <summary>
+        /// Requests / 15-min window (user auth) 15
+        /// </summary>
+        public void GetFollowersIds(Dictionary<string, string> parameters)
+        {
+            if (ClientHelper.SaveCach(Application.temporaryCachePath + FOLLOWERS_IDS_CACH, GetFollowersIdsCallback, 60))
+            {
+                return;
+            }
+            string endpointUrl = BASE_URL + "followers/ids.json";
+            StartCoroutine(Get(endpointUrl, parameters, GetFollowersIdsCallback));
+        }
+
+        public virtual void GetFollowersIdsCallback(bool isSuccess, string response)
+        {
+            if (isSuccess)
+            {
+                File.WriteAllText(Application.temporaryCachePath + FOLLOWERS_IDS_CACH, response);
+            }
+            else
+            {
+                Debug.LogError("HTTP error : " + response);
             }
         }
 
@@ -344,7 +426,7 @@ namespace Unitter
         /// </summary>
         public void GetUsersLookup(Dictionary<string, string> parameters)
         {
-            if (ClientHelper.SaveCach(Application.temporaryCachePath + USERS_LOOKUP_CACH, GetFriendsIdsCallback, 1))
+            if (ClientHelper.SaveCach(Application.temporaryCachePath + USERS_LOOKUP_CACH, GetUsersLookupCallback, 1))
             {
                 return;
             }
@@ -352,14 +434,15 @@ namespace Unitter
             StartCoroutine(Get(requestUrl, parameters, GetUsersLookupCallback));
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
         public virtual void GetUsersLookupCallback(bool isSuccess, string response)
         {
             if (isSuccess)
             {
                 File.WriteAllText(Application.temporaryCachePath + USERS_LOOKUP_CACH, response);
+            }
+            else
+            {
+                Debug.LogError("HTTP error : " + response);
             }
         }
 
@@ -368,7 +451,7 @@ namespace Unitter
         /// </summary>
         public void GetSearchTweets(Dictionary<string, string> parameters)
         {
-            if (ClientHelper.SaveCach(Application.temporaryCachePath + SEARCH_TEWWTS_CACH, GetFriendsIdsCallback, 1))
+            if (ClientHelper.SaveCach(Application.temporaryCachePath + SEARCH_TEWWTS_CACH, GetSearchTweetsCallback, 1))
             {
                 return;
             }
@@ -376,15 +459,15 @@ namespace Unitter
             StartCoroutine(Get(requestUrl, parameters, GetSearchTweetsCallback));
         }
 
-        
-        /// <summary>
-        /// 
-        /// </summary>
         public virtual void GetSearchTweetsCallback(bool isSuccess, string response)
         {
             if (isSuccess)
             {
                 File.WriteAllText(Application.temporaryCachePath + USERS_LOOKUP_CACH, response);
+            }
+            else
+            {
+                Debug.LogError("HTTP error : " + response);
             }
         }
 
