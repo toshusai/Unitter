@@ -1,20 +1,24 @@
-﻿using System.Collections;
-using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
+﻿using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.UI;
 using Unitter;
 
 public class ExampleClient : Client
 {
+    //Your app Keys
+    public string consumerKey_ = "";
+    public string consumerSecret_ = "";
+    public InputField pinInputField;
+
     private string oauthToken;
 
-    public string GetOauthToken()
+    public void OpenAuthURL()
     {
-        return oauthToken;
+        SetConsumerKeySecret(consumerKey_, consumerSecret_);
+        PostOAuthRequestToken(PostOAuthRequestTokenCallback);
     }
 
-    public override void PostOAuthRequestTokenCallback(bool isSuccess, string response)
+    private void PostOAuthRequestTokenCallback(bool isSuccess, string response)
     {
         if (isSuccess)
         {
@@ -29,9 +33,33 @@ public class ExampleClient : Client
         }
     }
 
-    public override void GetStatuesHomeTimelineCallback(bool isSuccess, string response)
+    public void SetAccessToken()
     {
-        base.GetStatuesHomeTimelineCallback(isSuccess, response);
+        PostOAuthAccessToken(pinInputField.text, oauthToken, PostOAuthAccessTokenCallback);
+    }
+
+    protected override void PostOAuthAccessTokenCallback(bool isSuccess, string response)
+    {
+        if (isSuccess)
+        {
+            base.PostOAuthAccessTokenCallback(isSuccess, response);
+            GetTimeline();
+        }else{
+            Debug.LogError("HTTP error :" + response);
+        }
+    }
+
+    private void GetTimeline()
+    {
+        Dictionary<string, string> parameters = new Dictionary<string, string>{
+            {"count", "200"},
+            {"include_entities", "false"}
+        };
+        GetStatuesHomeTimeline(parameters, GetStatuesHomeTimelineCallback);
+    }
+
+    private void GetStatuesHomeTimelineCallback(bool isSuccess, string response)
+    {
         if (isSuccess)
         {
             JSONNode tweets = JSON.Parse(response);

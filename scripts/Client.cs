@@ -31,9 +31,6 @@ namespace Unitter
         protected string userId = "";
         protected string scrrenName = "";
 
-        //Callback method
-        public delegate void response(bool isSuccess, string response);
-
         #region Set methods
 
         /// <summary>
@@ -104,7 +101,9 @@ namespace Unitter
                 scrrenName = token["screen_name"];
                 userId = token["user_id"];
                 return true;
-            }else{
+            }
+            else
+            {
                 return false;
             }
         }
@@ -116,17 +115,17 @@ namespace Unitter
         /// <summary>
         /// POST request.
         /// </summary>
-        public IEnumerator Post(string requestURl, Dictionary<string, string> parameters, response callback)
+        public IEnumerator Post(string requestURl, Dictionary<string, string> parameters, Action<bool, string> callback)
         {
             WWWForm form = new WWWForm();
             UnityWebRequest request = UnityWebRequest.Post(requestURl, form);
-            yield return SendRequest(request, requestURl, POST, parameters, callback);
+            yield return SendRequest(request, requestURl, POST, parameters, callback, (string s) => { });
         }
 
         /// <summary>
         /// Get request.
         /// </summary>
-        public IEnumerator Get(string requestURl, Dictionary<string, string> parameters, response callback)
+        public IEnumerator Get(string requestURl, Dictionary<string, string> parameters, Action<bool, string> callback, Action<string> cachAction)
         {
             parameters = ClientHelper.SortDictionary(parameters);
 
@@ -138,13 +137,13 @@ namespace Unitter
             requestParameterUrl = requestParameterUrl.Remove(requestParameterUrl.Length - 1);
 
             UnityWebRequest request = UnityWebRequest.Get(requestParameterUrl);
-            yield return SendRequest(request, requestURl, GET, parameters, callback);
+            yield return SendRequest(request, requestURl, GET, parameters, callback, cachAction);
         }
 
         /// <summary>
         /// Web request.
         /// </summary>
-        private IEnumerator SendRequest(UnityWebRequest request, string requestURl, string requestMethod, Dictionary<string, string> parameters, response callback)
+        private IEnumerator SendRequest(UnityWebRequest request, string requestURl, string requestMethod, Dictionary<string, string> parameters, Action<bool, string> callback, Action<string> cachAction)
         {
             request.SetRequestHeader("Content-Type", "application/x-www-form-urlencoded");
             request.SetRequestHeader("Authorization", GenerateHeaderAuthorization(requestURl, requestMethod, parameters));
@@ -152,6 +151,7 @@ namespace Unitter
             if (request.responseCode == 200 || request.responseCode == 201)
             {
                 callback(true, request.downloadHandler.text);
+                cachAction(request.downloadHandler.text);
             }
             else
             {
@@ -161,19 +161,6 @@ namespace Unitter
 
         #endregion
 
-        #region Overload methods
-
-        /// <summary>
-        /// No require parameters POST request.
-        /// </summary>
-        public IEnumerator Post(string requestURl, response callback)
-        {
-            WWWForm form = new WWWForm();
-            UnityWebRequest request = UnityWebRequest.Post(requestURl, form);
-            yield return StartCoroutine(SendRequest(request, requestURl, POST, new Dictionary<string, string>(), callback));
-        }
-
-        #endregion
 
         #region Helper of auth
 
@@ -262,23 +249,16 @@ namespace Unitter
         #endregion
 
 
-        #region virtual Rest API
+        #region Rest API
 
         /// <summary>
         /// 
         /// </summary>
-        public void PostOAuthRequestToken()
+        public void PostOAuthRequestToken(Action<bool, string> callback)
         {
             string endpointUrl = "https://api.twitter.com/oauth/request_token";
-            StartCoroutine(Post(endpointUrl, new Dictionary<string, string>(), PostOAuthRequestTokenCallback));
-        }
-
-        /// <summary>
-        /// 
-        /// </summary>
-        public virtual void PostOAuthRequestTokenCallback(bool isSuccess, string response)
-        {
-            // Example
+            StartCoroutine(Post(endpointUrl, new Dictionary<string, string>(), callback));
+            // Callback Example
             /*
             if (isSuccess) {
                 Dictionary<string, string> parameters = GetParametersFromResponse(response);
@@ -291,29 +271,26 @@ namespace Unitter
         /// <summary>
         /// 
         /// </summary>
-        public void PostOAuthAccessToken(string oauthVerifier, string oauthToken)
+        public void PostOAuthAccessToken(string oauthVerifier, string oauthToken, Action<bool, string> callback)
         {
             string endpointUrl = "https://api.twitter.com/oauth/access_token";
             Dictionary<string, string> parameters = new Dictionary<string, string>() {
                 { "oauth_verifier", oauthVerifier},
                 { "oauth_token", oauthToken}
             };
-            StartCoroutine(Post(endpointUrl, parameters, PostOAuthAccessTokenCallback));
+            StartCoroutine(Post(endpointUrl, parameters, callback));
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
-        public virtual void PostOAuthAccessTokenCallback(bool isSuccess, string response)
+        protected virtual void PostOAuthAccessTokenCallback(bool isSuccess, string response)
         {
             if (isSuccess)
             {
-                Dictionary<string, string> parameters = Client.GetParametersFromResponse(response);
+                Dictionary<string, string> responseParameters = Client.GetParametersFromResponse(response);
                 // Set Access Token and Access Token Secret.
-                SetAccessToken(parameters["oauth_token"]);
-                SetAccessTokenSecret(parameters["oauth_token_secret"]);
-                userId = parameters["user_id"];
-                scrrenName = parameters["screen_name"];
+                SetAccessToken(responseParameters["oauth_token"]);
+                SetAccessTokenSecret(responseParameters["oauth_token_secret"]);
+                userId = responseParameters["user_id"];
+                scrrenName = responseParameters["screen_name"];
             }
             else
             {
@@ -321,155 +298,109 @@ namespace Unitter
             }
         }
 
+
         /// <summary>
         /// 
         /// </summary>
-        public void GetStatuesHomeTimeline(Dictionary<string, string> parameters)
+        public void GetStatuesHomeTimeline(Dictionary<string, string> parameters, Action<bool, string> callback)
         {
-            if (ClientHelper.SaveCach(Application.temporaryCachePath + STATUS_HOME_TIMELINE_CACH, GetStatuesHomeTimelineCallback, 60))
+            string cachPath = Application.temporaryCachePath + STATUS_HOME_TIMELINE_CACH;
+            if (ClientHelper.ConfirmCach(cachPath, callback, 60))
             {
                 return;
             }
             string endpointUrl = BASE_URL + "statuses/home_timeline.json";
-            StartCoroutine(Get(endpointUrl, parameters, GetStatuesHomeTimelineCallback));
-        }
-
-        public virtual void GetStatuesHomeTimelineCallback(bool isSuccess, string response)
-        {
-            if (isSuccess)
+            StartCoroutine(Get(endpointUrl, parameters, callback, (string response) =>
             {
-                File.WriteAllText(Application.temporaryCachePath + STATUS_HOME_TIMELINE_CACH, response);
-            }
-            else
-            {
-                Debug.LogError("HTTP error : " + response);
-            }
+                File.WriteAllText(cachPath, response);
+            }));
         }
 
         /// <summary>
         /// Requests / 15-min window (user auth) 900
         /// </summary>
-        public void GetUsersShow(Dictionary<string, string> parameters)
+        public void GetUsersShow(Dictionary<string, string> parameters, Action<bool, string> callback)
         {
-            if (ClientHelper.SaveCach(Application.temporaryCachePath + USERS_SHOW_CACH, GetUsersShowCallback, 1))
+            string cachPath = Application.temporaryCachePath + USERS_SHOW_CACH;
+            if (ClientHelper.ConfirmCach(cachPath, callback, 1))
             {
                 return;
             }
             string endpointUrl = BASE_URL + "users/show.json";
-            StartCoroutine(Get(endpointUrl, parameters, GetUsersShowCallback));
-        }
-
-        public virtual void GetUsersShowCallback(bool isSuccess, string response)
-        {
-            if (isSuccess)
+            StartCoroutine(Get(endpointUrl, parameters, callback, (string response) =>
             {
-                File.WriteAllText(Application.temporaryCachePath + USERS_SHOW_CACH, response);
-            }
-            else
-            {
-                Debug.LogError("HTTP error : " + response);
-            }
+                File.WriteAllText(cachPath, response);
+            }));
         }
 
         /// <summary>
         /// Requests / 15-min window (user auth) 15
         /// </summary>
-        public void GetFriendsIds(Dictionary<string, string> parameters)
+        public void GetFriendsIds(Dictionary<string, string> parameters, Action<bool, string> callback)
         {
-            if (ClientHelper.SaveCach(Application.temporaryCachePath + FRIENDS_IDS_CACH, GetFriendsIdsCallback, 60))
+            string cachPath = Application.temporaryCachePath + FRIENDS_IDS_CACH;
+            if (ClientHelper.ConfirmCach(cachPath, callback, 60))
             {
                 return;
             }
             string endpointUrl = BASE_URL + "friends/ids.json";
-            StartCoroutine(Get(endpointUrl, parameters, GetFriendsIdsCallback));
-        }
-
-        public virtual void GetFriendsIdsCallback(bool isSuccess, string response)
-        {
-            if (isSuccess)
+            StartCoroutine(Get(endpointUrl, parameters, callback, (string response) =>
             {
-                File.WriteAllText(Application.temporaryCachePath + FRIENDS_IDS_CACH, response);
-            }
-            else
-            {
-                Debug.LogError("HTTP error : " + response);
-            }
+                File.WriteAllText(cachPath, response);
+            }));
         }
 
         /// <summary>
         /// Requests / 15-min window (user auth) 15
         /// </summary>
-        public void GetFollowersIds(Dictionary<string, string> parameters)
+        public void GetFollowersIds(Dictionary<string, string> parameters, Action<bool, string> callback)
         {
-            if (ClientHelper.SaveCach(Application.temporaryCachePath + FOLLOWERS_IDS_CACH, GetFollowersIdsCallback, 60))
+            string cachPath = Application.temporaryCachePath + FOLLOWERS_IDS_CACH;
+            if (ClientHelper.ConfirmCach(cachPath, callback, 60))
             {
                 return;
             }
             string endpointUrl = BASE_URL + "followers/ids.json";
-            StartCoroutine(Get(endpointUrl, parameters, GetFollowersIdsCallback));
-        }
-
-        public virtual void GetFollowersIdsCallback(bool isSuccess, string response)
-        {
-            if (isSuccess)
+            StartCoroutine(Get(endpointUrl, parameters, callback, (string response) =>
             {
-                File.WriteAllText(Application.temporaryCachePath + FOLLOWERS_IDS_CACH, response);
-            }
-            else
-            {
-                Debug.LogError("HTTP error : " + response);
-            }
+                File.WriteAllText(cachPath, response);
+            }));
         }
 
         /// <summary>
         /// Requests / 15-min window (user auth) 900
         /// </summary>
-        public void GetUsersLookup(Dictionary<string, string> parameters)
+        public void GetUsersLookup(Dictionary<string, string> parameters, Action<bool, string> callback)
         {
-            if (ClientHelper.SaveCach(Application.temporaryCachePath + USERS_LOOKUP_CACH, GetUsersLookupCallback, 1))
+            string cachPath = Application.temporaryCachePath + USERS_LOOKUP_CACH;
+            if (ClientHelper.ConfirmCach(cachPath, callback, 1))
             {
                 return;
             }
             string requestUrl = BASE_URL + "users/lookup.json";
-            StartCoroutine(Get(requestUrl, parameters, GetUsersLookupCallback));
-        }
-
-        public virtual void GetUsersLookupCallback(bool isSuccess, string response)
-        {
-            if (isSuccess)
+            StartCoroutine(Get(requestUrl, parameters, callback, (string response) =>
             {
-                File.WriteAllText(Application.temporaryCachePath + USERS_LOOKUP_CACH, response);
-            }
-            else
-            {
-                Debug.LogError("HTTP error : " + response);
-            }
+                File.WriteAllText(cachPath, response);
+            }));
         }
 
         /// <summary>
         /// Gets the search tweets.
         /// </summary>
-        public void GetSearchTweets(Dictionary<string, string> parameters)
+        public void GetSearchTweets(Dictionary<string, string> parameters, Action<bool, string> callback)
         {
-            if (ClientHelper.SaveCach(Application.temporaryCachePath + SEARCH_TEWWTS_CACH, GetSearchTweetsCallback, 1))
+            string cachPath = Application.temporaryCachePath + SEARCH_TEWWTS_CACH;
+            if (ClientHelper.ConfirmCach(cachPath, callback, 1))
             {
                 return;
             }
             string requestUrl = BASE_URL + "search/tweets.json";
-            StartCoroutine(Get(requestUrl, parameters, GetSearchTweetsCallback));
+            StartCoroutine(Get(requestUrl, parameters, callback, (string response) =>
+            {
+                File.WriteAllText(cachPath, response);
+            }));
         }
 
-        public virtual void GetSearchTweetsCallback(bool isSuccess, string response)
-        {
-            if (isSuccess)
-            {
-                File.WriteAllText(Application.temporaryCachePath + USERS_LOOKUP_CACH, response);
-            }
-            else
-            {
-                Debug.LogError("HTTP error : " + response);
-            }
-        }
 
         #endregion
     }

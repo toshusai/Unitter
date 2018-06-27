@@ -50,7 +50,7 @@ namespace Unitter
         }
 
 
-        static public bool SaveCach(string cachPath, Client.response callback, int interval){
+        static public bool ConfirmCach(string cachPath, Action<bool, string> callback, int interval){
             if (File.Exists(cachPath))
             {
                 DateTime lastTime = File.GetLastWriteTime(cachPath);
